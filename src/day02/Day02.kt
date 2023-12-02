@@ -3,20 +3,20 @@ package day02
 import println
 import readInput
 
-data class Game(
+private data class Game(
     val id: Int,
     val subsets: List<Subset>
 )
 
-data class Subset(
+private data class Subset(
     val red: Int,
     val blue: Int,
     val green: Int
-) {
-    fun isPossible() = red <= bag.red && green <= bag.green && blue <= bag.blue
-}
+)
 
-val bag = Subset(
+private fun Subset.isPossible() = red <= bag.red && green <= bag.green && blue <= bag.blue
+
+private val bag = Subset(
     red = 12,
     green = 13,
     blue = 14
