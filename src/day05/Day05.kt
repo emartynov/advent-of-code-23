@@ -72,18 +72,16 @@ fun main() {
                             }
                             .toList()
 
-                    seeds.map { seed ->
-                        AgricultureMapType
-                                .entries
-                                .fold(listOf(seed)) { keyRanges, type ->
-                                    val agriMap = maps.getValue(type)
-                                }
-                    }
-                            .flatten()
+//                    seeds.map { seed ->
+//                        AgricultureMapType
+//                                .entries
+//                                .fold(listOf(seed)) { keyRanges, type ->
+//                                    val agriMap = maps.getValue(type)
+//                                }
+//                    }
+//                            .flatten()
+                    1L
                 }
-                .also(::println)
-                .minOf { it.first }
-                .also(::println)
     }
 
     // test if implementation meets criteria from the description, like:
