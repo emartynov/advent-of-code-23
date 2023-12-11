@@ -100,15 +100,84 @@ fun main() {
 
         input.calculateDistances(start, mapOfDistances)
 
-//        mapOfDistances.also(::println)
-
         return mapOfDistances
                 .values
                 .max()
     }
 
     fun part2(input: List<String>): Int {
-        return input.size
+        val mapUnlocked = mutableMapOf<Pair<Int, Int>, Char>()
+        val candidates = mutableListOf<Pair<Int, Int>>()
+
+        input.first().mapIndexed { index, char ->
+            val coordinates = 0 to index
+            if (char == '.') {
+                mapUnlocked[coordinates] = 'O'
+                candidates.add(coordinates.first + 1 to coordinates.second)
+            } else {
+                mapUnlocked[coordinates] = 'X'
+            }
+        }
+
+        input.last().mapIndexed { index, char ->
+            val coordinates = input.size - 1 to index
+            if (char == '.') {
+                mapUnlocked[coordinates] = 'O'
+                candidates.add(coordinates.first - 1 to coordinates.second)
+            } else {
+                mapUnlocked[coordinates] = 'X'
+            }
+        }
+
+        input.forEachIndexed { index, row ->
+            val coordinatesFirst = index to 0
+            val coordinatesLast = index to row.length - 1
+            if (row.first() == '.') {
+                mapUnlocked[coordinatesFirst] = 'O'
+                candidates.add(coordinatesFirst.first to coordinatesFirst.second + 1)
+            } else {
+                mapUnlocked[coordinatesFirst] = 'X'
+            }
+            if (row.last() == '.') {
+                mapUnlocked[coordinatesLast] = 'O'
+                candidates.add(coordinatesLast.first to coordinatesLast.second - 1)
+            } else {
+                mapUnlocked[coordinatesFirst] = 'X'
+            }
+        }
+
+        while (candidates.isNotEmpty()) {
+            val point = candidates.removeFirst()
+            val char = input[point.first][point.second]
+            if (char == '.') {
+                mapUnlocked[point] = 'O'
+                candidates.addAll(
+                        listOf(
+                                (point.first - 1 to point.second),
+                                (point.first + 1 to point.second),
+                                (point.first to point.second - 1),
+                                (point.first to point.second + 1),
+                        )
+                                .filter {
+                                    it.first > -1 &&
+                                            it.first < input.size &&
+                                            it.second > -1 &&
+                                            it.second < input.first().length &&
+                                            mapUnlocked[it] == null
+                                }
+                )
+            } else {
+                mapUnlocked[point] = 'X'
+            }
+        }
+
+        return input.mapIndexed { rowIndex, row ->
+            row.mapIndexed { columnIndex, char ->
+                if (char == '.' && mapUnlocked[rowIndex to columnIndex] == null) 1 else 0
+            }
+        }
+                .flatten()
+                .sum()
     }
 
     // test if implementation meets criteria from the description, like:
@@ -116,9 +185,16 @@ fun main() {
     check(part1(testInput1) == 4)
     val testInput2 = readInput("day10/Day10_test2")
     check(part1(testInput2) == 8)
-//    check(part2(testInput) == 2)
+    val testInput4 = readInput("day10/Day10_test4")
+    check(part2(testInput4) == 4)
+    val testInput3 = readInput("day10/Day10_test3")
+    check(part2(testInput3) == 4)
+    val testInput5 = readInput("day10/Day10_test5")
+//    check(part2(testInput5) == 8)
+    val testInput6 = readInput("day10/Day10_test6")
+//    check(part2(testInput6) == 10)
 
     val input = readInput("day10/Day10")
     part1(input).println()
-//    part2(input).println()
+    part2(input).println()
 }
