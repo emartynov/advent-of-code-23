@@ -56,6 +56,15 @@ fun main() {
         }
     }
 
+    fun List<String>.unfold(): List<String> {
+        return map { lineString ->
+            val (springsString, numbersString) = lineString.split(" ")
+            List(5) { springsString }.joinToString("?") +
+                    " " +
+                    List(5) { numbersString }.joinToString(",")
+        }
+    }
+
     fun part1(input: List<String>): Int {
         return input
                 .parseSprings()
@@ -65,13 +74,13 @@ fun main() {
     }
 
     fun part2(input: List<String>): Int {
-        return part1(input)
+        return part1(input.unfold())
     }
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("day12/Day12_test")
     check(part1(testInput) == 21)
-//    check(part2(testInput) == 10)
+    check(part2(testInput) == 525152)
 
     val input = readInput("day12/Day12")
     part1(input).println()
