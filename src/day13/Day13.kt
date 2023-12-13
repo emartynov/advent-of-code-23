@@ -24,19 +24,29 @@ fun main() {
         return result
     }
 
-    fun List<String>.mirrowRowNumber(): Int {
+    fun List<String>.mirrowRowNumber(differenceAllowed: Int = 0): Int {
         (1..<size).forEach { row ->
             var index = 1
             var matched = 0
+            var difference = 0
             while (row - index > -1 && row + index - 1 < size) {
-                if (get(row - index) != get(row + index - 1)) {
+                val row1 = get(row - index)
+                val row2 = get(row + index - 1)
+                difference += row1.foldIndexed(0) { charIndex, acc, char ->
+                    acc + if (char == row2[charIndex]) 0 else 1
+                }
+                if (difference > differenceAllowed) {
                     break
                 } else {
                     matched += 1
                 }
                 index += 1
             }
-            if (matched > 0 && (matched == row || matched == size - row)) {
+            if (
+                    matched > 0 &&
+                    (difference == differenceAllowed) &&
+                    (matched == row || matched == size - row)
+            ) {
                 return row
             }
         }
@@ -59,20 +69,26 @@ fun main() {
         return input
                 .toPatterns()
                 .sumOf { pattern ->
-                    100 * pattern.mirrowRowNumber() + pattern.columnAsRows().mirrowRowNumber()
+                    100 * pattern.mirrowRowNumber() +
+                            pattern.columnAsRows().mirrowRowNumber()
                 }
     }
 
     fun part2(input: List<String>): Int {
-        return part1(input)
+        return input
+                .toPatterns()
+                .sumOf { pattern ->
+                    100 * pattern.mirrowRowNumber(1) +
+                            pattern.columnAsRows().mirrowRowNumber(1)
+                }
     }
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("day13/Day13_test")
     check(part1(testInput) == 405)
-//    check(part2(testInput) == 525152)
+    check(part2(testInput) == 400)
 
     val input = readInput("day13/Day13")
     part1(input).println()
-//    part2(input).println()
+    part2(input).println()
 }
