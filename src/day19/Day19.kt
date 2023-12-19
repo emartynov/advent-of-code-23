@@ -11,20 +11,86 @@ private data class Part(
         val s: Int
 )
 
+private data class Possibilities(
+        val x: IntRange = 1..4000,
+        val m: IntRange = 1..4000,
+        val a: IntRange = 1..4000,
+        val s: IntRange = 1..4000
+) {
+    fun all(): Long {
+        if (listOf(x.isEmpty(), m.isEmpty(), a.isEmpty(), s.isEmpty()).any { it })
+            return 0L
+
+        return (x.last - x.first + 1).toLong() *
+                (m.last - m.first + 1) *
+                (a.last - a.first + 1) *
+                (s.last - s.first + 1)
+    }
+
+}
+
+private operator fun IntRange.minus(range: IntRange): IntRange =
+        if (isEmpty()) {
+            this
+        } else {
+            val first = if (range.first == first) range.last + 1 else first
+            val last = if (range.last == last) range.first - 1 else last
+            first..last
+        }
+
+private sealed class Operation {
+    abstract fun check(p: Part): Boolean
+
+    data object Pass : Operation() {
+        override fun check(p: Part): Boolean {
+            return true
+        }
+    }
+
+    data class Less(val partComponent: String, val value: Int) : Operation() {
+        override fun check(p: Part): Boolean {
+            val partComponentValue =
+                    when (partComponent) {
+                        "x" -> p.x
+                        "a" -> p.a
+                        "m" -> p.m
+                        "s" -> p.s
+                        else -> throw IllegalArgumentException("Some")
+                    }
+
+            return partComponentValue < value
+        }
+    }
+
+    data class More(val partComponent: String, val value: Int) : Operation() {
+        override fun check(p: Part): Boolean {
+            val partComponentValue =
+                    when (partComponent) {
+                        "x" -> p.x
+                        "a" -> p.a
+                        "m" -> p.m
+                        "s" -> p.s
+                        else -> throw IllegalArgumentException("Some")
+                    }
+            return partComponentValue > value
+        }
+    }
+}
+
 private sealed class Rule(
-        val check: (Part) -> Boolean
+        val operation: Operation
 ) {
     class ToWorkflow(
             val nextWorflow: String,
-            check: (Part) -> Boolean
+            check: Operation
     ) : Rule(check)
 
     class Accept(
-            check: (Part) -> Boolean
+            check: Operation
     ) : Rule(check)
 
     class Reject(
-            check: (Part) -> Boolean
+            check: Operation
     ) : Rule(check)
 }
 
@@ -48,34 +114,30 @@ fun main() {
                                     .split(",")
                                     .map { ruleString ->
                                         val parts = ruleString.split(":")
-                                        val check = if (parts.size == 1) {
-                                            { true }
+                                        val operation = if (parts.size == 1) {
+                                            Operation.Pass
                                         } else {
                                             val checkParts = parts
                                                     .first()
                                                     .split("<", ">")
 
-                                            val res = { p: Part ->
-                                                val data = when (checkParts.first()) {
-                                                    "x" -> p.x
-                                                    "a" -> p.a
-                                                    "m" -> p.m
-                                                    "s" -> p.s
-                                                    else -> throw IllegalArgumentException("Some")
-                                                }
-                                                if (parts.first().contains(">")) {
-                                                    data > checkParts.last().toInt()
-                                                } else {
-                                                    data < checkParts.last().toInt()
-                                                }
+                                            if (parts.first().contains(">")) {
+                                                Operation.More(
+                                                        partComponent = checkParts.first(),
+                                                        value = checkParts.last().toInt()
+                                                )
+                                            } else {
+                                                Operation.Less(
+                                                        partComponent = checkParts.first(),
+                                                        value = checkParts.last().toInt()
+                                                )
                                             }
-                                            res
                                         }
                                         when (val result = parts.last()) {
-                                            "A" -> Rule.Accept(check)
-                                            "R" -> Rule.Reject(check)
+                                            "A" -> Rule.Accept(operation)
+                                            "R" -> Rule.Reject(operation)
                                             else -> Rule.ToWorkflow(
-                                                    check = check,
+                                                    check = operation,
                                                     nextWorflow = result
                                             )
                                         }
@@ -117,10 +179,10 @@ fun main() {
                         var accepted = false
                         var currentWorkflow: Workflow? = workflows["in"]
                         while (currentWorkflow != null) {
-                            val rules = currentWorkflow.rules as List<Rule>
+                            val rules = currentWorkflow.rules
                             for (i in 0..<rules.size) {
                                 val rule = rules[i]
-                                val ruleResult = rule.check.invoke(part)
+                                val ruleResult = rule.operation.check(part)
                                 if (ruleResult) {
                                     if (rule is Rule.ToWorkflow) {
                                         currentWorkflow = workflows[rule.nextWorflow]
@@ -140,16 +202,282 @@ fun main() {
                 }
     }
 
-    fun part2(input: List<String>): Int {
-        return input.size
+    fun caclulatePossibilities(possibilities: Possibilities, key: String, workflows: Map<String, Workflow>): Long {
+        var leftPossibilities = possibilities
+        return workflows.getValue(key)
+                .rules
+                .sumOf { rule ->
+                    when (rule) {
+                        is Rule.Accept -> {
+                            val acceptedPossibilities = when (rule.operation) {
+                                is Operation.Less -> {
+                                    Possibilities(
+                                            a = if (rule.operation.partComponent == "a") {
+                                                minOf(leftPossibilities.a.first, rule.operation.value - 1)..
+                                                        minOf(leftPossibilities.a.last, rule.operation.value - 1)
+                                            } else {
+                                                leftPossibilities.a
+                                            },
+                                            x = if (rule.operation.partComponent == "x") {
+                                                minOf(leftPossibilities.x.first, rule.operation.value - 1)..
+                                                        minOf(leftPossibilities.x.last, rule.operation.value - 1)
+                                            } else {
+                                                leftPossibilities.x
+                                            },
+                                            s = if (rule.operation.partComponent == "s") {
+                                                minOf(leftPossibilities.s.first, rule.operation.value - 1)..
+                                                        minOf(leftPossibilities.s.last, rule.operation.value - 1)
+                                            } else {
+                                                leftPossibilities.s
+                                            },
+                                            m = if (rule.operation.partComponent == "m") {
+                                                minOf(leftPossibilities.m.first, rule.operation.value - 1)..
+                                                        minOf(leftPossibilities.m.last, rule.operation.value - 1)
+                                            } else {
+                                                leftPossibilities.m
+                                            },
+                                    )
+                                }
+
+                                is Operation.More -> {
+                                    Possibilities(
+                                            a = if (rule.operation.partComponent == "a") {
+                                                maxOf(leftPossibilities.a.first, rule.operation.value + 1)..
+                                                        maxOf(leftPossibilities.a.last, rule.operation.value + 1)
+                                            } else {
+                                                leftPossibilities.a
+                                            },
+                                            x = if (rule.operation.partComponent == "x") {
+                                                maxOf(leftPossibilities.x.first, rule.operation.value + 1)..
+                                                        maxOf(leftPossibilities.x.last, rule.operation.value + 1)
+                                            } else {
+                                                leftPossibilities.x
+                                            },
+                                            s = if (rule.operation.partComponent == "s") {
+                                                maxOf(leftPossibilities.s.first, rule.operation.value + 1)..
+                                                        maxOf(leftPossibilities.s.last, rule.operation.value + 1)
+                                            } else {
+                                                leftPossibilities.s
+                                            },
+                                            m = if (rule.operation.partComponent == "m") {
+                                                maxOf(leftPossibilities.m.first, rule.operation.value + 1)..
+                                                        maxOf(leftPossibilities.m.last, rule.operation.value + 1)
+                                            } else {
+                                                leftPossibilities.m
+                                            },
+                                    )
+                                }
+
+                                Operation.Pass -> leftPossibilities
+                            }
+                            leftPossibilities = when (rule.operation) {
+                                is Operation.Pass -> Possibilities(
+                                        IntRange.EMPTY,
+                                        IntRange.EMPTY,
+                                        IntRange.EMPTY,
+                                        IntRange.EMPTY,
+                                )
+
+                                else -> {
+                                    val partName = if (rule.operation is Operation.Less) {
+                                        rule.operation.partComponent
+                                    } else {
+                                        (rule.operation as Operation.More).partComponent
+                                    }
+                                    Possibilities(
+                                            a = if (partName == "a") (leftPossibilities.a - acceptedPossibilities.a) else leftPossibilities.a,
+                                            m = if (partName == "m") (leftPossibilities.m - acceptedPossibilities.m) else leftPossibilities.m,
+                                            s = if (partName == "s") (leftPossibilities.s - acceptedPossibilities.s) else leftPossibilities.s,
+                                            x = if (partName == "x") (leftPossibilities.x - acceptedPossibilities.x) else leftPossibilities.x,
+                                    )
+                                }
+                            }
+                            acceptedPossibilities.all()
+                        }
+
+                        is Rule.Reject -> {
+                            leftPossibilities = when (rule.operation) {
+                                is Operation.Less -> {
+                                    Possibilities(
+                                            a = if (rule.operation.partComponent == "a") {
+                                                maxOf(leftPossibilities.a.first, rule.operation.value)..
+                                                        maxOf(leftPossibilities.a.last, rule.operation.value)
+                                            } else {
+                                                leftPossibilities.a
+                                            },
+                                            x = if (rule.operation.partComponent == "x") {
+                                                maxOf(leftPossibilities.x.first, rule.operation.value)..
+                                                        maxOf(leftPossibilities.x.last, rule.operation.value)
+                                            } else {
+                                                leftPossibilities.x
+                                            },
+                                            s = if (rule.operation.partComponent == "s") {
+                                                maxOf(leftPossibilities.s.first, rule.operation.value)..
+                                                        maxOf(leftPossibilities.s.last, rule.operation.value)
+                                            } else {
+                                                leftPossibilities.s
+                                            },
+                                            m = if (rule.operation.partComponent == "m") {
+                                                maxOf(leftPossibilities.m.first, rule.operation.value)..
+                                                        maxOf(leftPossibilities.m.last, rule.operation.value)
+                                            } else {
+                                                leftPossibilities.m
+                                            },
+                                    )
+                                }
+
+                                is Operation.More -> {
+                                    Possibilities(
+                                            a = if (rule.operation.partComponent == "a") {
+                                                minOf(leftPossibilities.a.first, rule.operation.value)..
+                                                        minOf(leftPossibilities.a.last, rule.operation.value)
+                                            } else {
+                                                leftPossibilities.a
+                                            },
+                                            x = if (rule.operation.partComponent == "x") {
+                                                minOf(leftPossibilities.x.first, rule.operation.value)..
+                                                        minOf(leftPossibilities.x.last, rule.operation.value)
+                                            } else {
+                                                leftPossibilities.x
+                                            },
+                                            s = if (rule.operation.partComponent == "s") {
+                                                minOf(leftPossibilities.s.first, rule.operation.value)..
+                                                        minOf(leftPossibilities.s.last, rule.operation.value)
+                                            } else {
+                                                leftPossibilities.s
+                                            },
+                                            m = if (rule.operation.partComponent == "m") {
+                                                minOf(leftPossibilities.m.first, rule.operation.value)..
+                                                        minOf(leftPossibilities.m.last, rule.operation.value)
+                                            } else {
+                                                leftPossibilities.m
+                                            },
+                                    )
+                                }
+
+                                Operation.Pass -> Possibilities(
+                                        x = IntRange.EMPTY,
+                                        m = IntRange.EMPTY,
+                                        a = IntRange.EMPTY,
+                                        s = IntRange.EMPTY,
+                                )
+                            }
+                            0L
+                        }
+
+                        is Rule.ToWorkflow -> {
+                            val nextWorkflowPossibilities = when (rule.operation) {
+                                is Operation.Less -> {
+                                    Possibilities(
+                                            a = if (rule.operation.partComponent == "a") {
+                                                minOf(leftPossibilities.a.first, rule.operation.value - 1)..
+                                                        minOf(leftPossibilities.a.last, rule.operation.value - 1)
+                                            } else {
+                                                leftPossibilities.a
+                                            },
+                                            x = if (rule.operation.partComponent == "x") {
+                                                minOf(leftPossibilities.x.first, rule.operation.value - 1)..
+                                                        minOf(leftPossibilities.x.last, rule.operation.value - 1)
+                                            } else {
+                                                leftPossibilities.x
+                                            },
+                                            s = if (rule.operation.partComponent == "s") {
+                                                minOf(leftPossibilities.s.first, rule.operation.value - 1)..
+                                                        minOf(leftPossibilities.s.last, rule.operation.value - 1)
+                                            } else {
+                                                leftPossibilities.s
+                                            },
+                                            m = if (rule.operation.partComponent == "m") {
+                                                minOf(leftPossibilities.m.first, rule.operation.value - 1)..
+                                                        minOf(leftPossibilities.m.last, rule.operation.value - 1)
+                                            } else {
+                                                leftPossibilities.m
+                                            },
+                                    )
+                                }
+
+                                is Operation.More -> {
+                                    Possibilities(
+                                            a = if (rule.operation.partComponent == "a") {
+                                                maxOf(leftPossibilities.a.first, rule.operation.value + 1)..
+                                                        maxOf(leftPossibilities.a.last, rule.operation.value + 1)
+                                            } else {
+                                                leftPossibilities.a
+                                            },
+                                            x = if (rule.operation.partComponent == "x") {
+                                                maxOf(leftPossibilities.x.first, rule.operation.value + 1)..
+                                                        maxOf(leftPossibilities.x.last, rule.operation.value + 1)
+                                            } else {
+                                                leftPossibilities.x
+                                            },
+                                            s = if (rule.operation.partComponent == "s") {
+                                                maxOf(leftPossibilities.s.first, rule.operation.value + 1)..
+                                                        maxOf(leftPossibilities.s.last, rule.operation.value + 1)
+                                            } else {
+                                                leftPossibilities.s
+                                            },
+                                            m = if (rule.operation.partComponent == "m") {
+                                                maxOf(leftPossibilities.m.first, rule.operation.value + 1)..
+                                                        maxOf(leftPossibilities.m.last, rule.operation.value + 1)
+                                            } else {
+                                                leftPossibilities.m
+                                            },
+                                    )
+                                }
+
+                                Operation.Pass -> leftPossibilities
+                            }
+                            leftPossibilities = when (rule.operation) {
+                                is Operation.Pass -> Possibilities(
+                                        IntRange.EMPTY,
+                                        IntRange.EMPTY,
+                                        IntRange.EMPTY,
+                                        IntRange.EMPTY,
+                                )
+
+                                else -> {
+                                    val partName = if (rule.operation is Operation.Less) {
+                                        rule.operation.partComponent
+                                    } else {
+                                        (rule.operation as Operation.More).partComponent
+                                    }
+                                    Possibilities(
+                                            a = if (partName == "a") (leftPossibilities.a - nextWorkflowPossibilities.a) else leftPossibilities.a,
+                                            m = if (partName == "m") (leftPossibilities.m - nextWorkflowPossibilities.m) else leftPossibilities.m,
+                                            s = if (partName == "s") (leftPossibilities.s - nextWorkflowPossibilities.s) else leftPossibilities.s,
+                                            x = if (partName == "x") (leftPossibilities.x - nextWorkflowPossibilities.x) else leftPossibilities.x,
+                                    )
+                                }
+                            }
+                            caclulatePossibilities(
+                                    possibilities = nextWorkflowPossibilities,
+                                    key = rule.nextWorflow,
+                                    workflows = workflows
+                            )
+                        }
+                    }
+                }
+    }
+
+    fun part2(input: List<String>): Long {
+        return input
+                .parsePartsAndRules()
+                .let { (workflows, _) ->
+                    val possibilities = Possibilities()
+                    caclulatePossibilities(
+                            possibilities = possibilities,
+                            key = "in",
+                            workflows = workflows
+                    )
+                }
     }
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("day19/Day19_test")
     check(part1(testInput) == 19114)
-//    check(part2(testInput) == 145)
+    check(part2(testInput) == 167409079868000)
 
     val input = readInput("day19/Day19")
     part1(input).println()
-//    part2(input).println()
+    part2(input).println()
 }
